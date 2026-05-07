@@ -532,6 +532,78 @@ button {
   }
 }
 
+
+/* Result picker modal */
+.resultModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: end center;
+  background: rgba(0,0,0,.58);
+  z-index: 100;
+  padding: 14px;
+}
+.resultModal.open { display: grid; }
+.resultSheet {
+  width: min(520px, 100%);
+  background: linear-gradient(180deg, rgba(44,44,48,.98), rgba(20,20,22,.98));
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 24px;
+  box-shadow: 0 24px 90px rgba(0,0,0,.55);
+  padding: 16px;
+}
+.resultSheetTitle {
+  font-size: 28px;
+  color: var(--orange);
+  font-style: italic;
+  line-height: .95;
+  margin-bottom: 4px;
+}
+.resultSheetSub {
+  font-family: Arial, sans-serif;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0;
+  margin-bottom: 14px;
+}
+.resultChoiceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.resultChoice {
+  min-height: 74px;
+  border-radius: 16px;
+  border: 2px solid rgba(255,255,255,.16);
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: 42px;
+  font-style: italic;
+}
+.resultChoice.win { background: var(--lime); color: #111; }
+.resultChoice.loss { background: var(--red); color: #111; }
+.resultChoice.clear {
+  grid-column: span 2;
+  min-height: 54px;
+  background: rgba(255,255,255,.1);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  font-style: normal;
+}
+.resultChoice.cancel {
+  grid-column: span 2;
+  min-height: 48px;
+  background: transparent;
+  color: var(--muted);
+  border-color: rgba(255,255,255,.1);
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+  font-style: normal;
+}
+@media (min-width: 720px) {
+  .resultModal { place-items: center; }
+}
+
 </style>
 </head>
 <body>
@@ -587,6 +659,20 @@ button {
   <div class="footerNote">Results save to the Match_Night_Live tab. Each round is stored separately.</div>
 </div>
 
+<div class="resultModal" id="resultModal" aria-hidden="true">
+  <div class="resultSheet">
+    <div class="resultSheetTitle" id="resultModalTitle">Select result</div>
+    <div class="resultSheetSub" id="resultModalSub"></div>
+    <div class="resultChoiceGrid">
+      <button class="resultChoice win" id="chooseWin">W</button>
+      <button class="resultChoice loss" id="chooseLoss">L</button>
+      <button class="resultChoice clear" id="chooseClear">Clear / Blank</button>
+      <button class="resultChoice cancel" id="chooseCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbzfs-Qd9A5PcQTg5zjiDzvnmoRUFB_iEjsgg5gVuViZ9XPJvpv7Y32mtzke-BpRJ5AM/exec";
 let config = {};
@@ -608,8 +694,18 @@ const els = {
   singlesGames: document.getElementById("singlesGames"),
   pairsCount: document.getElementById("pairsCount"),
   singlesCount: document.getElementById("singlesCount"),
-  refreshBtn: document.getElementById("refreshBtn")
+  refreshBtn: document.getElementById("refreshBtn"),
+  resultModal: document.getElementById("resultModal"),
+  resultModalTitle: document.getElementById("resultModalTitle"),
+  resultModalSub: document.getElementById("resultModalSub"),
+  chooseWin: document.getElementById("chooseWin"),
+  chooseLoss: document.getElementById("chooseLoss"),
+  chooseClear: document.getElementById("chooseClear"),
+  chooseCancel: document.getElementById("chooseCancel")
 };
+
+let pendingGame = null;
+let pendingElement = null;
 
 function getDeviceId() {
   let id = localStorage.getItem("mtwdcDeviceId");
@@ -711,10 +807,29 @@ function updateStatus() {
   els.statusBox.innerHTML = `<b>${headline}</b><br>${detail}`;
 }
 
-function nextResult(current) {
-  if (current === "") return "W";
-  if (current === "W") return "L";
-  return "";
+function openResultPicker(game, element) {
+  pendingGame = game;
+  pendingElement = element;
+
+  els.resultModalTitle.textContent = game.gameLabel;
+  els.resultModalSub.textContent = game.player2 ? `${game.player1} + ${game.player2}` : game.player1;
+  els.resultModal.classList.add("open");
+  els.resultModal.setAttribute("aria-hidden", "false");
+}
+
+function closeResultPicker() {
+  els.resultModal.classList.remove("open");
+  els.resultModal.setAttribute("aria-hidden", "true");
+  pendingGame = null;
+  pendingElement = null;
+}
+
+async function chooseResult(result) {
+  if (!pendingGame) return;
+  const game = pendingGame;
+  const element = pendingElement;
+  closeResultPicker();
+  await saveResult(game, result, element);
 }
 
 function renderGames() {
@@ -739,15 +854,14 @@ function renderPairsGrid(pairs) {
     <div class="pairsGrid">
       ${pairs.map(pairTemplate).join("")}
     </div>
-    <div class="tapHint">Tap a pair box to cycle Blank → W → L.</div>
+    <div class="tapHint">Tap a pair box to choose W, L or Clear.</div>
   `;
 
   document.querySelectorAll("[data-pair-box]").forEach(box => {
     box.addEventListener("click", async () => {
       const gameId = box.dataset.gameId;
       const game = currentRound.games.find(g => g.gameId === gameId);
-      const current = scoreFor(gameId);
-      await saveResult(game, nextResult(current), box);
+      openResultPicker(game, box);
     });
   });
 }
@@ -824,15 +938,14 @@ function renderSinglesGrid(singles) {
         ${rows}
       </div>
     </div>
-    <div class="tapHint">Tap a box to cycle Blank → W → L.</div>
+    <div class="tapHint">Tap a box to choose W, L or Clear.</div>
   `;
 
   document.querySelectorAll("[data-score-cell]").forEach(cell => {
     cell.addEventListener("click", async () => {
       const gameId = cell.dataset.gameId;
       const game = currentRound.games.find(g => g.gameId === gameId);
-      const current = scoreFor(gameId);
-      await saveResult(game, nextResult(current), cell);
+      openResultPicker(game, cell);
     });
   });
 }
@@ -957,6 +1070,14 @@ els.roundSelect.addEventListener("change", () => {
 
 els.refreshBtn.addEventListener("click", () => {
   loadScores().catch(error => showError(error.message));
+});
+
+els.chooseWin.addEventListener("click", () => chooseResult("W"));
+els.chooseLoss.addEventListener("click", () => chooseResult("L"));
+els.chooseClear.addEventListener("click", () => chooseResult(""));
+els.chooseCancel.addEventListener("click", closeResultPicker);
+els.resultModal.addEventListener("click", event => {
+  if (event.target === els.resultModal) closeResultPicker();
 });
 
 init();
