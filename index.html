@@ -724,8 +724,6 @@ function renderGames() {
   const singles = currentRound.games.filter(g => g.gameType === "Singles");
 
   els.pairsCount.textContent = `${pairs.length} game${pairs.length === 1 ? "" : "s"}`;
-  els.singlesCount.textContent = `${playerMapSizeFromGames(singles)} players`;
-
   renderPairsGrid(pairs);
   renderSinglesGrid(singles);
   updateStatus();
@@ -772,17 +770,27 @@ function playerMapSizeFromGames(games) {
 }
 
 function renderSinglesGrid(singles) {
-  if (!singles.length) {
+  const allowedSinglesPlayers = new Set(
+    (currentRound.players || [])
+      .filter(p => p.role === "Single + Pairs" || p.role === "Singles Only")
+      .map(p => p.player)
+  );
+
+  const filteredSingles = singles.filter(game => allowedSinglesPlayers.has(game.player1));
+
+  if (!filteredSingles.length) {
     els.singlesGames.innerHTML = `<div class="tapHint">No singles found for this round.</div>`;
     return;
   }
 
   const playerMap = new Map();
 
-  singles.forEach(game => {
+  filteredSingles.forEach(game => {
     if (!playerMap.has(game.player1)) playerMap.set(game.player1, []);
     playerMap.get(game.player1).push(game);
   });
+
+  els.singlesCount.textContent = `${playerMap.size} players`;
 
   const rows = [...playerMap.entries()].map(([player, games]) => {
     games.sort((a, b) => gameNumberFromLabel(a.gameLabel) - gameNumberFromLabel(b.gameLabel));
