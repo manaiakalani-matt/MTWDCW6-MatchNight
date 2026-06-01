@@ -613,6 +613,52 @@ button {
   color: #111 !important;
 }
 
+
+/* Order for Card */
+.cardOrderList {
+  display: grid;
+  gap: 8px;
+}
+
+.cardOrderItem {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.065);
+  border: 1px solid rgba(255,255,255,.09);
+}
+
+.cardOrderNumber {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #111;
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.cardOrderName {
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.cardOrderEmpty {
+  color: var(--muted);
+  font-family: Arial, sans-serif;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
 </style>
 </head>
 <body>
@@ -665,6 +711,11 @@ button {
     <div class="games" id="singlesGames"></div>
   </section>
 
+  <section class="card section">
+    <div class="sectionTitle"><h2>Order for Card</h2><span id="cardOrderCount">Card order</span></div>
+    <div class="cardOrderList" id="cardOrderList"></div>
+  </section>
+
   <div class="footerNote">Results save to the Match_Night_Live tab. Each round is stored separately.</div>
 </div>
 
@@ -701,6 +752,8 @@ const els = {
   lastUpdated: document.getElementById("lastUpdated"),
   pairsGames: document.getElementById("pairsGames"),
   singlesGames: document.getElementById("singlesGames"),
+  cardOrderList: document.getElementById("cardOrderList"),
+  cardOrderCount: document.getElementById("cardOrderCount"),
   pairsCount: document.getElementById("pairsCount"),
   singlesCount: document.getElementById("singlesCount"),
   refreshBtn: document.getElementById("refreshBtn"),
@@ -850,7 +903,30 @@ function renderGames() {
   els.pairsCount.textContent = `${pairs.length} game${pairs.length === 1 ? "" : "s"}`;
   renderPairsGrid(pairs);
   renderSinglesGrid(singles);
+  renderCardOrder();
   updateStatus();
+}
+
+function renderCardOrder() {
+  const order = currentRound && Array.isArray(currentRound.cardOrder) ? currentRound.cardOrder : [];
+
+  if (!order.length) {
+    els.cardOrderCount.textContent = "0 players";
+    els.cardOrderList.innerHTML = `<div class="cardOrderEmpty">No card order found for this round.</div>`;
+    return;
+  }
+
+  els.cardOrderCount.textContent = `${order.length} players`;
+  els.cardOrderList.innerHTML = order.map((item, index) => {
+    const number = item.order || index + 1;
+    const player = item.player || item.raw || "";
+    return `
+      <div class="cardOrderItem">
+        <div class="cardOrderNumber">${number}</div>
+        <div class="cardOrderName">${player}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderPairsGrid(pairs) {
