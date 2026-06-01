@@ -919,11 +919,11 @@ function renderCardOrder() {
   els.cardOrderCount.textContent = `${order.length} players`;
   els.cardOrderList.innerHTML = order.map((item, index) => {
     const number = item.order || index + 1;
-    const player = item.player || item.raw || "";
+    const cardEntry = item.raw || item.player || "";
     return `
       <div class="cardOrderItem">
         <div class="cardOrderNumber">${number}</div>
-        <div class="cardOrderName">${player}</div>
+        <div class="cardOrderName">${cardEntry}</div>
       </div>
     `;
   }).join("");
