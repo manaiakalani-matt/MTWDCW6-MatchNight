@@ -795,13 +795,6 @@ function setLoading(isLoading) {
   document.body.classList.toggle("loading", isLoading);
 }
 
-
-function roundDisplayLabel(round) {
-  const date = (round.date || "").trim();
-  const name = round.round || "";
-  return date ? `(${date}) ${name}` : name;
-}
-
 async function apiGet(action, params = {}) {
   const url = new URL(API_URL);
   url.searchParams.set("action", action);
@@ -1128,7 +1121,9 @@ async function init() {
     rounds.forEach(round => {
       const option = document.createElement("option");
       option.value = round.round;
-      option.textContent = `${round.round} - ${round.opponent || "No opponent yet"}`;
+      const roundDate = String(round.date || "").trim();
+      const roundLabel = roundDate ? `(${roundDate}) ${round.round}` : round.round;
+      option.textContent = `${roundLabel} - ${round.opponent || "No opponent yet"}`;
       els.roundSelect.appendChild(option);
     });
 
