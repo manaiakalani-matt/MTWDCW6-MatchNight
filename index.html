@@ -795,6 +795,13 @@ function setLoading(isLoading) {
   document.body.classList.toggle("loading", isLoading);
 }
 
+
+function roundDisplayLabel(round) {
+  const date = (round.date || "").trim();
+  const name = round.round || "";
+  return date ? `(${date}) ${name}` : name;
+}
+
 async function apiGet(action, params = {}) {
   const url = new URL(API_URL);
   url.searchParams.set("action", action);
